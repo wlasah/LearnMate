@@ -13,6 +13,7 @@ export function HapticTab(props: BottomTabBarButtonProps) {
         }
         props.onPressIn?.(ev);
       }}
+      style={[props.style, { opacity: 1 }]}
     />
   );
 }
