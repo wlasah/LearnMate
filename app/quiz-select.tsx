@@ -1,15 +1,16 @@
 // app/quiz-select.tsx
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Subject {
   id: string;
@@ -22,6 +23,7 @@ interface Subject {
 
 export default function QuizSelectScreen() {
   const router = useRouter();
+  const { colors, isDarkMode } = useTheme();
 
   const subjects: Subject[] = [
     {
@@ -82,13 +84,13 @@ export default function QuizSelectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }] }>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Subject</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Select Subject</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -97,20 +99,31 @@ export default function QuizSelectScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.subtitle}>Choose a subject to start your quiz</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose a subject to start your quiz</Text>
 
         <View style={styles.subjectsGrid}>
           {subjects.map((subject) => (
             <TouchableOpacity
               key={subject.id}
-              style={[styles.subjectCard, { backgroundColor: subject.backgroundColor }]}
+              style={[
+                styles.subjectCard,
+                {
+                  backgroundColor: isDarkMode ? colors.surface : subject.backgroundColor,
+                  borderColor: colors.border,
+                },
+              ]}
               onPress={() => handleSubjectSelect(subject)}
             >
-              <View style={[styles.iconContainer, { backgroundColor: subject.color }]}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: isDarkMode ? `${subject.color}33` : subject.color },
+                ]}
+              >
                 <Ionicons name={subject.icon as any} size={32} color="#FFFFFF" />
               </View>
-              <Text style={styles.subjectName}>{subject.name}</Text>
-              <Text style={styles.questionsCount}>
+              <Text style={[styles.subjectName, { color: colors.text }]}>{subject.name}</Text>
+              <Text style={[styles.questionsCount, { color: colors.textSecondary }]}>
                 {subject.questionsCount} questions
               </Text>
             </TouchableOpacity>
@@ -124,7 +137,6 @@ export default function QuizSelectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -136,7 +148,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333',
   },
   content: {
     paddingHorizontal: 24,
@@ -144,7 +155,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -171,12 +181,10 @@ const styles = StyleSheet.create({
   subjectName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     textAlign: 'center',
     marginBottom: 8,
   },
   questionsCount: {
     fontSize: 12,
-    color: '#666',
   },
 });

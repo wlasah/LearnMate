@@ -1,224 +1,383 @@
-// app/(auth)/login.tsx (Sign In Screen - matches your Figma)
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView
-} from 'react-native';
-import { useRouter } from 'expo-router';
+// app/(auth)/login.tsx (Sign In Screen - Professional Compact Design)
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [attempted, setAttempted] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const { colors, isDarkMode } = useTheme();
+
+  // Email validation regex
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Validate email on change (only if user attempted submit)
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (!attempted) return; // Don't show errors until user attempts submit
+    
+    if (text.length === 0) {
+      setEmailError('');
+    } else if (!isValidEmail(text)) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  // Validate password on change (only if user attempted submit)
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (!attempted) return; // Don't show errors until user attempts submit
+    
+    if (text.length === 0) {
+      setPasswordError('');
+    } else if (text.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+    } else {
+      setPasswordError('');
+    }
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    setAttempted(true);
+    
+    // Validate email
+    if (!email) {
+      setEmailError('Email is required');
+      Alert.alert('Validation Error', 'Please enter your email address');
       return;
     }
 
+    if (!isValidEmail(email)) {
+      setEmailError('Please enter a valid email address');
+      Alert.alert('Invalid Email', 'Please enter a valid email format (e.g., user@example.com)');
+      return;
+    }
+
+    // Validate password
+    if (!password) {
+      setPasswordError('Password is required');
+      Alert.alert('Validation Error', 'Please enter your password');
+      return;
+    }
+
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      Alert.alert('Invalid Password', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
     const result = await login(email, password);
+    setLoading(false);
     if (result.success) {
       router.replace('/(tabs)');
     } else {
+      setEmailError('');
+      setPasswordError('');
+      setAttempted(false);
       Alert.alert('Login Failed', result.error);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Nice! Good to see you again</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#7F8C8D" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholderTextColor="#BDC3C7"
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Logo Section (use PNGs like splash) */}
+          <View style={styles.logoSection}>
+            <Image
+              source={require('../../assets/images/LearnMate_logo.png')}
+              style={[styles.logoImage, { opacity: isDarkMode ? 1.2 : 1 }]}
             />
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#7F8C8D" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              placeholderTextColor="#BDC3C7"
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons 
-                name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                size={20} 
-                color="#7F8C8D" 
+            <View style={{ position: 'relative' }}>
+              <Image
+                source={require('../../assets/images/title_logo.png')}
+                style={[styles.logoTitleImage, { opacity: isDarkMode ? 1.0 : 1, zIndex: 1 }]}
               />
-            </TouchableOpacity>
+              {isDarkMode && (
+                <View style={{ position: 'absolute', zIndex: 2, flexDirection: 'row' }}>
+                  <Text style={styles.learnText}>Learn</Text>
+                  <Text style={styles.mateText}>Mate</Text>
+                </View>
+              )}
+            </View>
           </View>
 
-          {/* Remember Me Checkbox */}
-          <View style={styles.rememberMeContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue learning</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.formContainer}>
+            {/* Email Input */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Email Address</Text>
+                {emailError ? <Text style={styles.errorLabel}>{emailError}</Text> : null}
+              </View>
+              <View style={[
+                styles.inputContainer, 
+                { 
+                  backgroundColor: colors.surface, 
+                  borderColor: emailError ? '#FF4B4B' : colors.border,
+                  borderWidth: emailError ? 2 : 1,
+                }
+              ]}>
+                <Ionicons name="mail" size={18} color={emailError ? '#FF4B4B' : colors.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="you@example.com"
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  editable={!loading}
+                  placeholderTextColor={colors.textSecondary}
+                />
+                {email && !emailError && (
+                  <Ionicons name="checkmark-circle" size={18} color="#2FB46E" />
+                )}
+                {emailError && (
+                  <Ionicons name="close-circle" size={18} color="#FF4B4B" />
+                )}
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.passwordHeader}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
+                <TouchableOpacity onPress={() => router.push('/notes' as any)} disabled={loading}>
+                  <Text style={[styles.forgotLink, { color: colors.primary }]}>Forgot?</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[
+                styles.inputContainer, 
+                { 
+                  backgroundColor: colors.surface,
+                  borderColor: passwordError ? '#FF4B4B' : colors.border,
+                  borderWidth: passwordError ? 2 : 1,
+                }
+              ]}>
+                <Ionicons name="lock-closed" size={18} color={passwordError ? '#FF4B4B' : colors.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="••••••••"
+                  value={password}
+                  onChangeText={handlePasswordChange}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  placeholderTextColor={colors.textSecondary}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={loading}>
+                  <Ionicons 
+                    name={showPassword ? "eye-off" : "eye"} 
+                    size={18} 
+                    color={passwordError ? '#FF4B4B' : colors.primary} 
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordError && (
+                <Text style={styles.errorLabel}>{passwordError}</Text>
+              )}
+            </View>
+
+            {/* Sign In Button */}
             <TouchableOpacity 
-              style={styles.checkbox}
-              onPress={() => setRememberMe(!rememberMe)}
+              style={[styles.signInButton, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]} 
+              onPress={handleLogin}
+              disabled={loading}
             >
-              {rememberMe && (
-                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              {loading ? (
+                <Text style={styles.signInButtonText}>Signing in...</Text>
+              ) : (
+                <Text style={styles.signInButtonText}>Sign In</Text>
               )}
             </TouchableOpacity>
-            <Text style={styles.rememberMeText}>Remember me</Text>
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Sign In Button */}
-          <TouchableOpacity style={styles.signInButton} onPress={handleLogin}>
-            <Text style={styles.signInButtonText}>SIGN IN</Text>
-          </TouchableOpacity>
-
-          {/* Sign Up Link */}
-          <View style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('register' as any)}>
-              <Text style={styles.signUpLink}>Sign up</Text>
-            </TouchableOpacity>
+            {/* Sign Up Link */}
+            <View style={styles.signUpContainer}>
+              <Text style={[styles.signUpText, { color: colors.textSecondary }]}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register' as any)} disabled={loading}>
+                <Text style={[styles.signUpLink, { color: colors.primary }]}>Sign up</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  logoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  logoImage: {
+    resizeMode: 'contain',
+    width: 350,
+    height: 185,
+    marginRight: -130,
+    marginTop: -110,
+    marginBottom: -27,
+
+  },
+  logoTitleImage: {
+    resizeMode: 'contain',
+    width: 300,
+    height: 170,
+    marginRight: 50,
+    marginLeft: -100,
+  },
+  learnText: {
+    fontWeight: '900',
+    fontSize:24,
+    color: '#90EE90',
+    top: 47,
+    left: -4.2,
+    letterSpacing: -0.3,
+  },
+  mateText: {
+    fontWeight: '900',
+    fontSize: 22,
+    color: '#20B2AA',
+    top: 50,
+    left: -4,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 6,
+    marginTop: -10,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#7F8C8D',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: -10,
+    marginBottom: 30,
   },
   formContainer: {
     width: '100%',
   },
+  inputWrapper: {
+    marginBottom: 10,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 0,
+  },
+  errorLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF4B4B',
+  },
+  passwordHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  forgotLink: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#E8EBED',
+    height: 48,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: '#2C3E50',
-  },
-  rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#4A90E2',
-    backgroundColor: '#4A90E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  rememberMeText: {
     fontSize: 14,
-    color: '#2C3E50',
-    flex: 1,
-  },
-  forgotPassword: {
-    marginLeft: 'auto',
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#4A90E2',
+    fontWeight: '500',
   },
   signInButton: {
-    backgroundColor: '#87CEEB',
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   signInButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 1,
   },
   signUpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
   },
   signUpText: {
-    fontSize: 14,
-    color: '#7F8C8D',
+    fontSize: 13,
+    fontWeight: '500',
   },
   signUpLink: {
-    fontSize: 14,
-    color: '#4A90E2',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

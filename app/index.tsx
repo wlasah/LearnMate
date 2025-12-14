@@ -1,11 +1,22 @@
-// app/index.tsx (Splash Screen - matches your Figma)
-import React, { useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+// app/index.tsx (Splash Screen - matches your screenshot)
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { colors, isDarkMode } = useTheme();
+  const { width, height } = Dimensions.get('window');
+const baseWidth = Math.min(width, 450);
+
+const logoWidth = baseWidth * 0.75;     // bigger
+const logoHeight = logoWidth * 0.55;
+
+const titleWidth = baseWidth * 0.55;     // bigger
+const titleHeight = titleWidth * 0.32;
+
 
   // Auto-navigate after 2 seconds (optional)
   useEffect(() => {
@@ -17,19 +28,35 @@ export default function SplashScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      {/* Logo - Replace with your actual logo */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Logo - centered */}
       <View style={styles.logoContainer}>
-        <Ionicons name="book" size={80} color="#4A90E2" />
-        <Text style={styles.logoText}>LearnMate</Text>
+        <Image
+  source={require('../assets/images/LearnMate_logo.png')}
+  style={[styles.logoImage, { opacity: isDarkMode ? 1.0 : 1 }]}
+/>
+
+<View style={{ position: 'relative' }}>
+  <Image
+    source={require('../assets/images/title_logo.png')}
+    style={[styles.logoTitleImage, { opacity: isDarkMode ? 1.0 : 1, zIndex: 1 }]}
+  />
+        {isDarkMode && (
+          <View style={{ position: 'absolute', zIndex: 2, flexDirection: 'row' }}>
+            <Text style={styles.learnText}>Learn</Text>
+            <Text style={styles.mateText}>Mate</Text>
+          </View>
+        )}
+</View>
+
       </View>
 
-      {/* Continue Button */}
+      {/* Continue Button - bottom right */}
       <TouchableOpacity 
-        style={styles.continueButton}
-        onPress={() => router.push('/(auth)/get-started' as any)}
+        style={[styles.continueButton, { backgroundColor: colors.primary }]}
+        onPress={() => router.push('/(auth)/get-started')}
       >
-        <Ionicons name="arrow-forward" size={32} color="white" />
+        <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -38,32 +65,64 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
   logoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 100,
+    justifyContent: 'center',
   },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginTop: 16,
-    letterSpacing: 1,
+  logoImage: {
+    resizeMode: 'contain',
+    marginRight: -75,
+    marginTop: -90,
+    width: 200, 
+    height: 600 
+  },
+  logoTitleImage: {
+    resizeMode: 'contain',
+    marginRight: 30,
+    width: 200,
+    height: 250
+  },
+  titleLogoText: {
+    position: 'absolute',
+    fontWeight: '500',
+    fontSize: 25,
+    zIndex: 2,
+    top: 80,
+    left: 34,
+  },
+  learnText: {
+    fontWeight: '900',
+    fontSize: 24,
+    color: '#20B2AA',
+    top: 83,
+    left: 35,
+  },
+  mateText: {
+    fontWeight: '900',
+    fontSize: 24,
+    color: '#90EE90',
+    zIndex: 0,
+    top: 83,
+    left: 33,
+   
   },
   continueButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#4A90E2',
+    position: 'absolute',
+    bottom: 48,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#87CEEB',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
   },

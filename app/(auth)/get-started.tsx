@@ -1,17 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function GetStarted() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Get Started</Text>
-      <Text style={styles.subtitle}>Welcome to LearnMate — get started by signing in or registering.</Text>
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/(auth)/login' as any)}>
-        <Text style={styles.buttonText}>Sign In</Text>
-      </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Get Started</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Start with sign up or sign in</Text>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={[styles.signUpButton, { backgroundColor: colors.primary }]} onPress={() => router.push('/(auth)/register' as any)}>
+          <Text style={styles.signUpButtonText}>SIGN UP</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/(auth)/login' as any)}>
+          <Text style={[styles.signInText, { color: colors.primary }]}>SIGN IN</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -19,13 +28,39 @@ export default function GetStarted() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+  },
+  title: { fontSize: 36, fontWeight: '700', marginBottom: 8 },
+  subtitle: { fontSize: 16, marginBottom: 24 },
+  footer: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    bottom: 40,
+    alignItems: 'center',
+  },
+  signUpButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
   },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 24 },
-  button: { backgroundColor: '#4A90E2', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  signUpButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  signInText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
 });

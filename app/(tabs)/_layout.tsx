@@ -1,25 +1,38 @@
-// app/(tabs)/_layout.tsx
+// navigation layout for bottom tabs
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HapticTab } from '../../components/haptic-tab';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#6EC1E4',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.headerBg,
           borderTopWidth: 1,
-          borderTopColor: '#F0F0F0',
-          height: 60,
-          paddingBottom: 8,
+          borderWidth: 0.5,
+          borderColor: colors.border,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
+          elevation: 10,
+          shadowColor: colors.border,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.4,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 13,
+          fontWeight: '800',
+          
+          
         },
       }}
     >
@@ -27,36 +40,74 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ focused }) => (
+            <Image 
+              source={require('../../assets/images/bottom-navigation/home.png')}
+              style={{ width: 40, height: 40, resizeMode: 'contain', transform: [{ scale: focused ? 1.08 : 1 }], opacity: focused ? 1 : 0.85 }} 
+            />
           ),
+          tabBarLabel: 'Home',
+          tabBarLabelStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trending-up" size={size} color={color} />
+          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ focused }) => (
+            <>
+              <Image 
+                source={require('../../assets/images/homescreen/white circle.png')}
+                style={{ width: 33, height: 33, resizeMode: 'contain', transform: [{ scale: focused ? 1.06 : 1 }], opacity: focused ? 1 : 0.85 }} 
+              />
+              <Image 
+                source={require('../../assets/images/bottom-navigation/progress.png')}
+                style={{ width: 40, height: 40, resizeMode: 'contain', position: 'absolute', transform: [{ scale: focused ? 1.06 : 1 }], opacity: focused ? 1 : 0.9 }} 
+              />
+            </>
           ),
+          tabBarLabel: 'Progress',
+          tabBarLabelStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Tabs.Screen
         name="study"
         options={{
           title: 'Study',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
+          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ focused }) => (
+            <Image 
+              source={require('../../assets/images/bottom-navigation/study.png')}
+              style={{ width: 40, height: 40, resizeMode: 'contain', transform: [{ scale: focused ? 1.08 : 1 }], opacity: focused ? 1 : 0.85 }} 
+            />
           ),
+          tabBarLabel: 'Study',
+          tabBarLabelStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: 'Account',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ focused }) => (
+            <Image 
+              source={require('../../assets/images/bottom-navigation/account.png')}
+              style={{ width: 40, height: 40, resizeMode: 'contain', transform: [{ scale: focused ? 1.08 : 1 }], opacity: focused ? 1 : 0.85 }} 
+            />
           ),
+          tabBarLabel: 'Account',
+          tabBarLabelStyle: {
+            color: colors.text,
+          },
         }}
       />
     </Tabs>
