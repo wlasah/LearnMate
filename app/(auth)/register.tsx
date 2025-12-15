@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -28,6 +27,7 @@ export default function RegisterScreen() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmError, setConfirmError] = useState('');
+  const [generalError, setGeneralError] = useState('');
   const [attempted, setAttempted] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
@@ -39,32 +39,89 @@ export default function RegisterScreen() {
     return emailRegex.test(email);
   };
 
-  // Validate email on change (only if user attempted submit)
+  // Convert Firebase errors to user-friendly messages
+  const getErrorMessage = (error: string | undefined): { field: 'email' | 'password' | 'general', message: string } => {
+    if (!error) return { field: 'general', message: 'Account creation failed. Please try again.' };
+    
+    const errorLower = error.toLowerCase();
+    
+    // Email already in use
+    if (errorLower.includes('email-already-in-use') || errorLower.includes('already exists')) {
+      return { field: 'email', message: 'This email is already registered. Please sign in or use a different email.' };
+    }
+    
+    // Weak password
+    if (errorLower.includes('weak-password')) {
+      return { field: 'password', message: 'Password is too weak. Use at least 8 characters with letters, numbers, and symbols.' };
+    }
+    
+    // Invalid email format
+    if (errorLower.includes('invalid-email')) {
+      return { field: 'email', message: 'Please enter a valid email address.' };
+    }
+    
+    // Network errors
+    if (errorLower.includes('network') || errorLower.includes('failed to fetch')) {
+      return { field: 'general', message: 'Network error. Please check your connection and try again.' };
+    }
+    
+    // Too many requests
+    if (errorLower.includes('too-many-requests')) {
+      return { field: 'general', message: 'Too many signup attempts. Please try again later.' };
+    }
+    
+    // Fallback
+    return { field: 'general', message: 'Account creation failed. Please try again.' };
+  };
+
+  // Password strength check
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { level: 0, text: '', color: '' };
+    let strength = 0;
+    if (password.length >= 6) strength++;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[!@#$%^&*]/.test(password)) strength++;
+
+    if (strength <= 1) return { level: 1, text: 'Weak', color: '#FF4B4B' };
+    if (strength <= 2) return { level: 2, text: 'Fair', color: '#FF9800' };
+    if (strength <= 3) return { level: 3, text: 'Good', color: '#FFD700' };
+    if (strength <= 4) return { level: 4, text: 'Strong', color: '#4CAF50' };
+    return { level: 5, text: 'Very Strong', color: '#2FB46E' };
+  };
+
+  // Validate email on change
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    if (!attempted) return; // Don't show errors until user attempts submit
+    setGeneralError('');
+    
+    if (!attempted) return;
     
     if (text.length === 0) {
       setEmailError('');
     } else if (!isValidEmail(text)) {
-      setEmailError('Invalid email format');
+      setEmailError('Please enter a valid email address');
     } else {
       setEmailError('');
     }
   };
 
-  // Validate password on change (only if user attempted submit)
+  // Validate password on change
   const handlePasswordChange = (text: string) => {
     setPassword(text);
-    if (!attempted) return; // Don't show errors until user attempts submit
+    setGeneralError('');
+    
+    if (!attempted) return;
     
     if (text.length === 0) {
       setPasswordError('');
     } else if (text.length < 6) {
-      setPasswordError('At least 6 characters');
+      setPasswordError('Password must be at least 6 characters');
     } else {
       setPasswordError('');
     }
+    
     // Check if it matches confirm password
     if (confirmPassword && text !== confirmPassword) {
       setConfirmError('Passwords do not match');
@@ -73,10 +130,12 @@ export default function RegisterScreen() {
     }
   };
 
-  // Validate confirm password on change (only if user attempted submit)
+  // Validate confirm password on change
   const handleConfirmChange = (text: string) => {
     setConfirmPassword(text);
-    if (!attempted) return; // Don't show errors until user attempts submit
+    setGeneralError('');
+    
+    if (!attempted) return;
     
     if (text.length === 0) {
       setConfirmError('');
@@ -87,60 +146,70 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleSignUp = async () => {
-    setAttempted(true);
-    
-    // Validate email
-    if (!email) {
-      setEmailError('Email is required');
-      Alert.alert('Validation Error', 'Please enter your email address');
-      return;
-    }
+  const validateInputs = () => {
+    let isValid = true;
 
-    if (!isValidEmail(email)) {
-      setEmailError('Invalid email format');
-      Alert.alert('Invalid Email', 'Please enter a valid email (e.g., user@example.com)');
-      return;
+    // Validate email
+    if (!email.trim()) {
+      setEmailError('Email address is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    } else {
+      setEmailError('');
     }
 
     // Validate password
     if (!password) {
       setPasswordError('Password is required');
-      Alert.alert('Validation Error', 'Please enter a password');
-      return;
-    }
-
-    if (password.length < 6) {
-      setPasswordError('At least 6 characters');
-      Alert.alert('Weak Password', 'Password must be at least 6 characters');
-      return;
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      isValid = false;
+    } else {
+      setPasswordError('');
     }
 
     // Validate confirm password
     if (!confirmPassword) {
       setConfirmError('Please confirm your password');
-      Alert.alert('Validation Error', 'Please confirm your password');
-      return;
+      isValid = false;
+    } else if (password !== confirmPassword) {
+      setConfirmError('Passwords do not match');
+      isValid = false;
+    } else {
+      setConfirmError('');
     }
 
-    if (password !== confirmPassword) {
-      setConfirmError('Passwords do not match');
-      Alert.alert('Password Mismatch', 'Your passwords do not match');
+    return isValid;
+  };
+
+  const handleSignUp = async () => {
+    setAttempted(true);
+    setGeneralError('');
+    
+    if (!validateInputs()) {
       return;
     }
 
     setLoading(true);
     const result = await register(email, password);
     setLoading(false);
+    
     if (result.success) {
-      Alert.alert('Success', 'Account created successfully!');
       router.replace('/(tabs)');
     } else {
-      setEmailError('');
-      setPasswordError('');
-      setConfirmError('');
-      setAttempted(false);
-      Alert.alert('Sign Up Failed', result.error);
+      // Get professional error message
+      const { field, message } = getErrorMessage(result.error);
+      
+      if (field === 'email') {
+        setEmailError(message);
+      } else if (field === 'password') {
+        setPasswordError(message);
+      } else {
+        setGeneralError(message);
+      }
     }
   };
 
@@ -179,6 +248,16 @@ export default function RegisterScreen() {
 
           {/* Form */}
           <View style={styles.formContainer}>
+            {/* General Error Alert */}
+            {generalError ? (
+              <View style={[styles.errorAlert, { backgroundColor: '#FF4B4B20', borderColor: '#FF4B4B' }]}>
+                <Ionicons name="alert-circle" size={18} color="#FF4B4B" style={{ marginRight: 8 }} />
+                <Text style={[styles.errorAlertText, { color: '#FF4B4B' }]}>
+                  {generalError}
+                </Text>
+              </View>
+            ) : null}
+
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <View style={styles.labelRow}>
@@ -217,8 +296,11 @@ export default function RegisterScreen() {
             <View style={styles.inputWrapper}>
               <View style={styles.labelRow}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-                {passwordError ? <Text style={styles.errorLabel}>{passwordError}</Text> : null}
+                {password && <Text style={[styles.strengthLabel, { color: getPasswordStrength(password).color }]}>
+                  {getPasswordStrength(password).text}
+                </Text>}
               </View>
+              {passwordError && <Text style={styles.errorLabel}>{passwordError}</Text>}
               <View style={[
                 styles.inputContainer, 
                 { 
@@ -245,7 +327,22 @@ export default function RegisterScreen() {
                   />
                 </TouchableOpacity>
               </View>
-              {!passwordError && <Text style={[styles.hint, { color: colors.textSecondary }]}>At least 6 characters</Text>}
+              {password && (
+                <View style={styles.strengthIndicator}>
+                  {[1, 2, 3, 4, 5].map((index) => (
+                    <View 
+                      key={index} 
+                      style={[
+                        styles.strengthBar,
+                        {
+                          backgroundColor: index <= getPasswordStrength(password).level ? getPasswordStrength(password).color : colors.border,
+                        }
+                      ]} 
+                    />
+                  ))}
+                </View>
+              )}
+              {!passwordError && <Text style={[styles.hint, { color: colors.textSecondary }]}>Use 8+ characters with mix of letters, numbers, and symbols</Text>}
             </View>
 
             {/* Confirm Password Input */}
@@ -257,7 +354,7 @@ export default function RegisterScreen() {
               <View style={[
                 styles.inputContainer, 
                 { 
-                  backgroundColor: colors.surface, 
+                  backgroundColor: colors.surface,
                   borderColor: confirmError ? '#FF4B4B' : colors.border,
                   borderWidth: confirmError ? 2 : 1,
                 }
@@ -280,9 +377,6 @@ export default function RegisterScreen() {
                   />
                 </TouchableOpacity>
               </View>
-              {password && confirmPassword && !confirmError && (
-                <Text style={[styles.hint, { color: '#2FB46E' }]}>✓ Passwords match</Text>
-              )}
             </View>
 
             {/* Sign Up Button */}
@@ -370,7 +464,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 15,
-  
   },
   title: {
     fontSize: 24,
@@ -380,7 +473,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-
     fontWeight: '500',
     marginTop: -10,
     marginBottom: 35, 
@@ -389,7 +481,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputWrapper: {
-    marginBottom: 3,
+    marginBottom: 16,
   },
   labelRow: {
     flexDirection: 'row',
@@ -407,11 +499,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FF4B4B',
   },
+  strengthLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   hint: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 6,
     marginLeft: 5,
+  },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+  },
+  errorAlertText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -430,6 +541,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: '500',
+  },
+  strengthIndicator: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+    marginLeft: 5,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
   },
   signUpButton: {
     paddingVertical: 14,

@@ -99,12 +99,23 @@ export default function AIProcessing() {
             setStatus('Verifying local file...');
             const fileInfo = await FileSystem.getInfoAsync(fileToUse);
             if (!fileInfo.exists) {
-              Alert.alert('File Not Found', `The local file no longer exists. Please re-upload the PDF.`);
+              Alert.alert('File Not Found', `The local file no longer exists. Please re-upload the file.`);
               router.back();
               return;
             }
             console.log('Local file verified:', fileToUse);
-            form.append('file', { uri: fileToUse, name: fileName, type: 'application/pdf' } as any);
+            
+            // Determine MIME type based on file extension
+            let mimeType = 'application/pdf';
+            if (fileName.toLowerCase().endsWith('.docx')) {
+              mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            } else if (fileName.toLowerCase().endsWith('.doc')) {
+              mimeType = 'application/msword';
+            } else if (fileName.toLowerCase().endsWith('.txt')) {
+              mimeType = 'text/plain';
+            }
+            
+            form.append('file', { uri: fileToUse, name: fileName, type: mimeType } as any);
           } catch (e: any) {
             console.error('Error verifying local file:', e?.message || e);
             Alert.alert('File Error', `Could not access local file: ${e?.message || 'Unknown error'}. Please re-upload the PDF.`);
@@ -114,7 +125,18 @@ export default function AIProcessing() {
         } else {
           // For HTTP(S) URLs or other types, send directly to server
           console.log('Using file URI directly:', fileToUse);
-          form.append('file', { uri: fileToUse, name: fileName, type: 'application/pdf' } as any);
+          
+          // Determine MIME type based on file extension
+          let mimeType = 'application/pdf';
+          if (fileName.toLowerCase().endsWith('.docx')) {
+            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          } else if (fileName.toLowerCase().endsWith('.doc')) {
+            mimeType = 'application/msword';
+          } else if (fileName.toLowerCase().endsWith('.txt')) {
+            mimeType = 'text/plain';
+          }
+          
+          form.append('file', { uri: fileToUse, name: fileName, type: mimeType } as any);
         }
 
         setStatus('Uploading to AI server...');
@@ -144,6 +166,34 @@ export default function AIProcessing() {
         if (!resp.ok) {
           const txt = await resp.text();
           console.error('AI server returned non-ok', { status: resp.status, text: txt });
+          
+          // Handle rate limit error with reset time
+          if (resp.status === 429) {
+            try {
+              const errorData = JSON.parse(txt);
+              if (errorData.resetTime) {
+                const resetDate = new Date(errorData.resetTime);
+                const now = new Date();
+                const hoursUntilReset = Math.ceil((resetDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+                
+                let resetMessage = `You've reached your daily processing limit.\n\n`;
+                if (hoursUntilReset > 0) {
+                  resetMessage += `Please try again in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}.\n\n`;
+                }
+                resetMessage += `Resets at: ${resetDate.toLocaleString()}`;
+                
+                Alert.alert('Daily Limit Reached', resetMessage);
+                router.back();
+                return;
+              }
+            } catch (e) {
+              // If parsing fails, show generic message
+              Alert.alert('Daily Limit Reached', 'You have reached your daily processing limit. Please try again tomorrow.');
+              router.back();
+              return;
+            }
+          }
+          
           throw new Error(txt || 'AI server error');
         }
 

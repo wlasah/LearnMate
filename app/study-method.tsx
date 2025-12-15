@@ -4,12 +4,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc as firestoreDoc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 const firebaseConfig: any = require('../config/firebase');
@@ -24,6 +26,7 @@ const methods = [
 export default function StudyMethod() {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [selectedMethod, setSelectedMethod] = useState<string>('quiz');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [quantity, setQuantity] = useState<number>(10);
@@ -161,12 +164,13 @@ export default function StudyMethod() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }] }>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Choose Study Method</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>How would you like to study?</Text>
-      </View>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Choose Study Method</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>How would you like to study?</Text>
+        </View>
 
-      <View style={styles.grid}>
+        <View style={styles.grid}>
         {methods.map((m) => {
           const active = selectedMethod === m.id;
           return (
@@ -186,19 +190,19 @@ export default function StudyMethod() {
             </TouchableOpacity>
           );
         })}
-      </View>
-
-      {/* Method Description */}
-      {getMethodDescription() && (
-        <View style={{ paddingHorizontal: 20, marginTop: 12, marginBottom: 8 }}>
-          <Text style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' }}>
-            {getMethodDescription()}
-          </Text>
         </View>
-      )}
 
-      {/* Difficulty Level - Only show for quiz, practice, and flashcards methods */}
-      {(needsDifficulty || showDifficultyForFlashcards) && (
+        {/* Method Description */}
+        {getMethodDescription() && (
+          <View style={{ paddingHorizontal: 20, marginTop: 12, marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' }}>
+              {getMethodDescription()}
+            </Text>
+          </View>
+        )}
+
+        {/* Difficulty Level - Only show for quiz, practice, and flashcards methods */}
+        {(needsDifficulty || showDifficultyForFlashcards) && (
         <View style={styles.difficultyArea}>
           <Text style={[styles.diffLabel, { color: colors.text }]}>Difficulty Level</Text>
           <View style={styles.diffButtons}>
@@ -240,11 +244,11 @@ export default function StudyMethod() {
             </TouchableOpacity>
           </View>
         </View>
-      )}
+        )}
 
-      {/* Quantity Selection - Hidden for Summary */}
-      {selectedMethod !== 'summary' && (
-        <View style={styles.quantityArea}>
+        {/* Quantity Selection - Hidden for Summary */}
+        {selectedMethod !== 'summary' && (
+          <View style={styles.quantityArea}>
           <Text style={[styles.quantityLabel, { color: colors.text }]}>{getQuantityLabel()}</Text>
           <View style={styles.quantityContainer}>
             <TouchableOpacity
@@ -265,10 +269,10 @@ export default function StudyMethod() {
           </View>
           <Text style={[styles.quantityHint, { color: colors.textSecondary }]}>3 - {maxQuantity} items</Text>
         </View>
-      )}
+        )}
 
-      {/* Summary Detail Level Selection - Only for Summary */}
-      {selectedMethod === 'summary' && (
+        {/* Summary Detail Level Selection - Only for Summary */}
+        {selectedMethod === 'summary' && (
         <View style={styles.quantityArea}>
           <Text style={[styles.quantityLabel, { color: colors.text }]}>{getQuantityLabel()}</Text>
           <Text style={[styles.summaryDescriptionHint, { color: colors.textSecondary }]}>
@@ -311,11 +315,12 @@ export default function StudyMethod() {
                 </Text>
               </TouchableOpacity>
             ))}
+            </View>
           </View>
-        </View>
-      )}
+        )}
+      </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom }]}>
         {uploadedFile ? (
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
             <Text style={{ fontWeight: '600', color: colors.text }}>{uploadedFile.fileName}</Text>

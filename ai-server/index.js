@@ -4,6 +4,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const pdf = require('pdf-parse');
+const mammoth = require('mammoth');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -77,6 +78,14 @@ const selectApiKey = () => {
   return selectedKey;
 };
 
+// Calculate next reset time for all keys (24 hours from last reset)
+const getNextResetTime = () => {
+  const oneDay = 24 * 60 * 60 * 1000;
+  // Find the earliest next reset time across all keys
+  const resetTimes = API_KEYS.map(k => k.lastResetTime + oneDay);
+  return Math.min(...resetTimes);
+};
+
 // Reset usage counters daily for all keys
 const resetUsageCounters = () => {
   const now = Date.now();
@@ -92,6 +101,31 @@ const resetUsageCounters = () => {
   });
 };
 
+// Extract text from different file formats
+const extractTextFromFile = async (filePath, mimeType) => {
+  try {
+    if (mimeType === 'application/pdf') {
+      // PDF extraction
+      const dataBuffer = fs.readFileSync(filePath);
+      const pdfData = await pdf(dataBuffer);
+      return (pdfData && pdfData.text) ? pdfData.text : '';
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || mimeType === 'application/msword') {
+      // Word document extraction (.docx or .doc)
+      const docxData = fs.readFileSync(filePath);
+      const result = await mammoth.extractRawText({ buffer: docxData });
+      return result.value || '';
+    } else if (mimeType === 'text/plain') {
+      // Plain text file
+      return fs.readFileSync(filePath, 'utf-8');
+    } else {
+      throw new Error(`Unsupported file format: ${mimeType}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error extracting text from file:`, error.message);
+    throw error;
+  }
+};
+
 // Check usage before each request
 const checkAndResetCounters = () => {
   resetUsageCounters();
@@ -99,7 +133,7 @@ const checkAndResetCounters = () => {
 
 app.use(express.json({ limit: '10mb' }));
 
-// POST /analyze - accepts multipart form-data with 'file' (pdf) and 'method' (quiz|summary|flashcards|practice)
+// POST /analyze - accepts multipart form-data with 'file' (PDF, Word, or Text) and 'method' (quiz|summary|flashcards|practice)
 app.post('/analyze', upload.single('file'), async (req, res) => {
   try {
     const method = req.body.method || 'summary';
@@ -107,51 +141,94 @@ app.post('/analyze', upload.single('file'), async (req, res) => {
     const difficulty = req.body.difficulty || 'medium';
     if (!req.file) return res.status(400).json({ error: 'Missing file' });
 
-    const dataBuffer = fs.readFileSync(req.file.path);
-    const pdfData = await pdf(dataBuffer);
-    const text = (pdfData && pdfData.text) ? pdfData.text : '';
+    // Extract text from file based on its MIME type
+    const mimeType = req.file.mimetype;
+    const text = await extractTextFromFile(req.file.path, mimeType);
+    
+    if (!text) {
+      return res.status(400).json({ error: 'Could not extract text from file. Please ensure the file is readable.' });
+    }
 
     // Function to generate summary prompt based on quantity level (1-5)
     const getSummaryPrompt = (level) => {
       const prompts = {
-        1: `Create a BRIEF, CONCISE summary with ONLY essential information. Focus on the absolute key points and main ideas. Keep it short and to the point without overwhelming detail.
+        1: `Create a BRIEF, CONCISE summary with ONLY essential information. Focus on the absolute key points and main ideas.
 
-## Key Points (5-7 main ideas)
-List the 5-7 most critical concepts and main takeaways in 1-2 sentences each.
+## Key Concepts
+Number each concept 1-7 and provide:
+- Definition or explanation
+- Key details as bullet points
+- Main application or example
 
-## Summary (150-200 words)
-Provide a concise paragraph summarizing the main topic and key concepts.`,
+Format each as:
+1. [Concept Name]
+   • Definition: [concise definition]
+   • Key Detail: [important point]
+   • Application: [how it's used]
 
-        2: `Create a QUICK OVERVIEW summary with important details but not excessive length. Include main concepts, important examples, and practical applications.
+## Summary
+Provide a 150-200 word concise paragraph of the main topic and key takeaways.`,
 
-## Overview (50-100 words)
-Provide a comprehensive opening paragraph covering main topic and significance.
+        2: `Create a QUICK OVERVIEW summary with important details but not excessive length.
 
-## Key Concepts (8-12 items)
-List important concepts with brief explanations (2-3 sentences each).
+## Overview
+Provide a 50-100 word opening paragraph covering main topic and significance.
 
-## Main Points (5-8 items)
-List major themes, theories, or findings with details.
+## Key Concepts
+Number each concept 1-12 and provide:
+- Definition or explanation
+- Key characteristics as bullet points
+- Significance or use case
 
-## Practical Applications (3-4 examples)
-Provide real-world examples and use cases.`,
+Format each as:
+1. [Concept Name]
+   • Definition: [explanation]
+   • Key Point: [important detail]
+   • Significance: [why it matters]
 
-        3: `Create a BALANCED, WELL-ROUNDED summary with good depth. Include core concepts, supporting details, examples, and applications without being overwhelming.
+## Main Themes
+Number 5-8 major themes or theories with:
+- Definition/explanation
+- Supporting details
+- Applications
 
-## Overview (100-150 words)
-Provide a comprehensive opening covering main topic, significance, and scope.
+## Practical Applications
+Number 3-4 real-world examples with context and relevance.`,
 
-## Core Concepts (12-15 items)
-List key concepts with solid explanations including context and applications.
+        3: `Create a BALANCED, WELL-ROUNDED summary with good depth and proper structure.
 
-## Main Theory & Framework (5-8 sections)
-Cover primary theories, models, and frameworks with detailed explanations.
+## Overview
+Provide a 100-150 word comprehensive opening covering main topic, significance, and scope.
 
-## Examples & Case Studies (3-5 detailed examples)
-Provide real-world examples with context and outcomes.
+## Core Concepts & Definitions
+Number each concept 1-15 and provide:
+- Concept name
+- Definition with context
+- Key characteristics as bullet points
+- How it relates to the topic
 
-## Key Takeaways (5-7 items)
-Summarize important insights and applications.`,
+Format:
+1. [Concept Name]
+   • Definition: [comprehensive explanation]
+   • Key Feature: [important characteristic]
+   • Application: [practical use]
+   • Context: [how it fits in topic]
+
+## Main Theories & Frameworks
+Number 5-8 major theories with:
+- Name and definition
+- Key components
+- How they work
+- Real-world applications
+
+## Examples & Case Studies
+Number 3-5 detailed examples with:
+- Scenario description
+- Key points illustrated
+- Outcomes or lessons
+
+## Key Takeaways
+Number 5-7 important insights with significance and how to apply them.`,
 
         4: `Create a DETAILED, COMPREHENSIVE summary with substantial depth. Include extensive explanations, multiple examples, case studies, analysis, and connections between concepts.
 
@@ -219,7 +296,7 @@ Provide 8-12 advanced topics: cutting-edge developments, emerging trends with an
     let jsonFormat = '';
     switch (method) {
       case 'quiz':
-        promptPrefix = 'Create a 10-question multiple-choice quiz based on the following text. Return as JSON array:';
+        promptPrefix = `Create a ${quantity}-question multiple-choice quiz based on the following text. Return as JSON array:`;
         jsonFormat = `[
           {
             "id": 1,
@@ -231,7 +308,7 @@ Provide 8-12 advanced topics: cutting-edge developments, emerging trends with an
         ]`;
         break;
       case 'flashcards':
-        promptPrefix = 'Create 10-15 flashcards from the text. Return as JSON array:';
+        promptPrefix = `Create ${quantity} flashcards from the text. Return as JSON array:`;
         jsonFormat = `[
           {
             "id": 1,
@@ -241,7 +318,7 @@ Provide 8-12 advanced topics: cutting-edge developments, emerging trends with an
         ]`;
         break;
       case 'practice':
-        promptPrefix = 'Create 5 practice exam-style multiple-choice questions with difficulty ratings. Format as JSON array:';
+        promptPrefix = `Create ${quantity} practice exam-style multiple-choice questions with difficulty ratings. Format as JSON array:`;
         jsonFormat = `[
           {
             "id": 1,
@@ -364,13 +441,29 @@ Provide 8-12 advanced topics: cutting-edge developments, emerging trends with an
             return res.json({ extractedText: text, method, ai: structuredData, keyUsed: backupKey.id });
           } catch (retryErr) {
             console.error(`❌ Backup key ${backupKey.id} also failed:`, retryErr.message);
+            // All keys exhausted - calculate reset time
+            const resetTimeMs = getNextResetTime();
+            const resetTime = new Date(resetTimeMs);
             fs.unlinkSync(req.file.path);
-            return res.status(429).json({ error: 'All available API keys are rate limited. Please try again in a few moments.' });
+            return res.status(429).json({ 
+              error: 'Daily usage limit reached',
+              detail: 'You have reached your daily processing limit. Please try again tomorrow.',
+              resetTime: resetTime.toISOString(),
+              resetTimeReadable: resetTime.toLocaleString()
+            });
           }
         }
         
+        // Daily limit reached - return reset time
+        const resetTimeMs = getNextResetTime();
+        const resetTime = new Date(resetTimeMs);
         fs.unlinkSync(req.file.path);
-        return res.status(429).json({ error: 'API rate limited. Please try again later.' });
+        return res.status(429).json({ 
+          error: 'Daily usage limit reached',
+          detail: 'You have reached your daily processing limit. Please try again tomorrow.',
+          resetTime: resetTime.toISOString(),
+          resetTimeReadable: resetTime.toLocaleString()
+        });
       }
 
       fs.unlinkSync(req.file.path);

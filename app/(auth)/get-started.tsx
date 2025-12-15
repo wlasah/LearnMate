@@ -1,18 +1,20 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export default function GetStarted() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.text }]}>Get Started</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Start with sign up or sign in</Text>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 20 + insets.bottom }]}>
         <TouchableOpacity style={[styles.signUpButton, { backgroundColor: colors.primary }]} onPress={() => router.push('/(auth)/register' as any)}>
           <Text style={styles.signUpButtonText}>SIGN UP</Text>
         </TouchableOpacity>
@@ -37,7 +39,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 24,
     right: 24,
-    bottom: 40,
+    bottom: 0,
     alignItems: 'center',
   },
   signUpButton: {

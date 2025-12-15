@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -25,6 +24,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
   const [attempted, setAttempted] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
@@ -36,10 +36,52 @@ export default function LoginScreen() {
     return emailRegex.test(email);
   };
 
-  // Validate email on change (only if user attempted submit)
+  // Convert Firebase errors to user-friendly messages
+  const getErrorMessage = (error: string | undefined): { field: 'email' | 'password' | 'general', message: string } => {
+    if (!error) return { field: 'general', message: 'Sign in failed. Please try again.' };
+    
+    const errorLower = error.toLowerCase();
+    
+    // Invalid credentials (wrong password)
+    if (errorLower.includes('invalid-credential') || errorLower.includes('wrong-password')) {
+      return { field: 'general', message: 'Incorrect email or password. Please try again.' };
+    }
+    
+    // User not found
+    if (errorLower.includes('user-not-found')) {
+      return { field: 'general', message: 'No account found with this email. Would you like to sign up instead?' };
+    }
+    
+    // Invalid email format
+    if (errorLower.includes('invalid-email')) {
+      return { field: 'email', message: 'Please enter a valid email address.' };
+    }
+    
+    // Too many requests
+    if (errorLower.includes('too-many-requests')) {
+      return { field: 'general', message: 'Too many login attempts. Please try again in a few minutes.' };
+    }
+    
+    // Network errors
+    if (errorLower.includes('network') || errorLower.includes('failed to fetch')) {
+      return { field: 'general', message: 'Network error. Please check your connection and try again.' };
+    }
+    
+    // User disabled
+    if (errorLower.includes('user-disabled')) {
+      return { field: 'general', message: 'This account has been disabled. Please contact support.' };
+    }
+    
+    // Fallback - clean up Firebase error message
+    return { field: 'general', message: 'Sign in failed. Please check your credentials and try again.' };
+  };
+
+  // Validate email on change
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    if (!attempted) return; // Don't show errors until user attempts submit
+    setGeneralError('');
+    
+    if (!attempted) return;
     
     if (text.length === 0) {
       setEmailError('');
@@ -50,10 +92,12 @@ export default function LoginScreen() {
     }
   };
 
-  // Validate password on change (only if user attempted submit)
+  // Validate password on change
   const handlePasswordChange = (text: string) => {
     setPassword(text);
-    if (!attempted) return; // Don't show errors until user attempts submit
+    setGeneralError('');
+    
+    if (!attempted) return;
     
     if (text.length === 0) {
       setPasswordError('');
@@ -64,45 +108,59 @@ export default function LoginScreen() {
     }
   };
 
-  const handleLogin = async () => {
-    setAttempted(true);
-    
-    // Validate email
-    if (!email) {
-      setEmailError('Email is required');
-      Alert.alert('Validation Error', 'Please enter your email address');
-      return;
-    }
+  const validateInputs = () => {
+    let isValid = true;
 
-    if (!isValidEmail(email)) {
+    // Validate email
+    if (!email.trim()) {
+      setEmailError('Email address is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
       setEmailError('Please enter a valid email address');
-      Alert.alert('Invalid Email', 'Please enter a valid email format (e.g., user@example.com)');
-      return;
+      isValid = false;
+    } else {
+      setEmailError('');
     }
 
     // Validate password
     if (!password) {
       setPasswordError('Password is required');
-      Alert.alert('Validation Error', 'Please enter your password');
-      return;
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      isValid = false;
+    } else {
+      setPasswordError('');
     }
 
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      Alert.alert('Invalid Password', 'Password must be at least 6 characters');
+    return isValid;
+  };
+
+  const handleLogin = async () => {
+    setAttempted(true);
+    setGeneralError('');
+    
+    if (!validateInputs()) {
       return;
     }
 
     setLoading(true);
     const result = await login(email, password);
     setLoading(false);
+    
     if (result.success) {
       router.replace('/(tabs)');
     } else {
-      setEmailError('');
-      setPasswordError('');
-      setAttempted(false);
-      Alert.alert('Login Failed', result.error);
+      // Get professional error message
+      const { field, message } = getErrorMessage(result.error);
+      
+      if (field === 'email') {
+        setEmailError(message);
+      } else if (field === 'password') {
+        setPasswordError(message);
+      } else {
+        setGeneralError(message);
+      }
     }
   };
 
@@ -141,6 +199,16 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.formContainer}>
+            {/* General Error Alert */}
+            {generalError ? (
+              <View style={[styles.errorAlert, { backgroundColor: '#FF4B4B20', borderColor: '#FF4B4B' }]}>
+                <Ionicons name="alert-circle" size={18} color="#FF4B4B" style={{ marginRight: 8 }} />
+                <Text style={[styles.errorAlertText, { color: '#FF4B4B' }]}>
+                  {generalError}
+                </Text>
+              </View>
+            ) : null}
+
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <View style={styles.labelRow}>
@@ -183,6 +251,7 @@ export default function LoginScreen() {
                   <Text style={[styles.forgotLink, { color: colors.primary }]}>Forgot?</Text>
                 </TouchableOpacity>
               </View>
+              {passwordError && <Text style={styles.errorLabel}>{passwordError}</Text>}
               <View style={[
                 styles.inputContainer, 
                 { 
@@ -209,9 +278,6 @@ export default function LoginScreen() {
                   />
                 </TouchableOpacity>
               </View>
-              {passwordError && (
-                <Text style={styles.errorLabel}>{passwordError}</Text>
-              )}
             </View>
 
             {/* Sign In Button */}
@@ -308,6 +374,21 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
   },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  errorAlertText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   inputWrapper: {
     marginBottom: 10,
   },
@@ -326,6 +407,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#FF4B4B',
+    marginBottom: 4,
   },
   passwordHeader: {
     flexDirection: 'row',

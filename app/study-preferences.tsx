@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -21,8 +22,35 @@ export default function StudyPreferencesPage() {
   const { colors } = useTheme();
   const [saving, setSaving] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
-  const [customTimeStart, setCustomTimeStart] = useState('');
-  const [customTimeEnd, setCustomTimeEnd] = useState('');
+  const [showCustomTime, setShowCustomTime] = useState(false);
+  const [customTimeStartHour, setCustomTimeStartHour] = useState('');
+  const [customTimeStartMin, setCustomTimeStartMin] = useState('');
+  const [customTimeStartPeriod, setCustomTimeStartPeriod] = useState('PM');
+  const [customTimeEndHour, setCustomTimeEndHour] = useState('');
+  const [customTimeEndMin, setCustomTimeEndMin] = useState('');
+  const [customTimeEndPeriod, setCustomTimeEndPeriod] = useState('PM');
+
+  // Convert 24-hour to 12-hour format
+  const convertTo12Hour = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    if (hour > 12) hour -= 12;
+    if (hour === 0) hour = 12;
+    return {
+      hour: hour.toString().padStart(2, '0'),
+      minute: minutes,
+      period,
+    };
+  };
+
+  // Convert 12-hour to 24-hour format
+  const convertTo24Hour = (hour: string, minute: string, period: string) => {
+    let h = parseInt(hour);
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return `${h.toString().padStart(2, '0')}:${minute}`;
+  };
   const [preferences, setPreferences] = useState({
     studyDifficulty: 'medium',
     studyDuration: '45min',
@@ -38,6 +66,7 @@ export default function StudyPreferencesPage() {
     { label: 'Afternoon (12 PM - 6 PM)', value: 'afternoon' },
     { label: 'Evening (6 PM - 10 PM)', value: 'evening' },
     { label: 'Night (10 PM - 12 AM)', value: 'night' },
+    { label: 'Custom', value: 'custom' },
   ];
 
   // Load preferences from AsyncStorage on mount
@@ -209,25 +238,186 @@ export default function StudyPreferencesPage() {
                   { backgroundColor: colors.surface, borderColor: colors.border }
                 ]}
                 onPress={() => {
-                  // Set approximate times for each slot
-                  const times: any = {
-                    'morning': { start: '06:00', end: '12:00' },
-                    'afternoon': { start: '12:00', end: '18:00' },
-                    'evening': { start: '18:00', end: '22:00' },
-                    'night': { start: '22:00', end: '00:00' },
-                  };
-                  setPreferences({
-                    ...preferences,
-                    studyTimeStart: times[slot.value].start,
-                    studyTimeEnd: times[slot.value].end,
-                  });
-                  setShowTimeModal(false);
+                  if (slot.value === 'custom') {
+                    setShowCustomTime(true);
+                  } else {
+                    // Set approximate times for each slot
+                    const times: any = {
+                      'morning': { start: '06:00', end: '12:00' },
+                      'afternoon': { start: '12:00', end: '18:00' },
+                      'evening': { start: '18:00', end: '22:00' },
+                      'night': { start: '22:00', end: '00:00' },
+                    };
+                    setPreferences({
+                      ...preferences,
+                      studyTimeStart: times[slot.value].start,
+                      studyTimeEnd: times[slot.value].end,
+                    });
+                    setShowTimeModal(false);
+                  }
                 }}
               >
-                <Ionicons name="time" size={24} color={colors.primary} />
+                <Ionicons name={slot.value === 'custom' ? 'settings' : 'time'} size={24} color={colors.primary} />
                 <Text style={[styles.timeOptionLabel, { color: colors.text }]}>{slot.label}</Text>
               </TouchableOpacity>
             ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Custom Study Time Modal */}
+      <Modal
+        visible={showCustomTime}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCustomTime(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Custom Study Time</Text>
+            <TouchableOpacity onPress={() => setShowCustomTime(false)}>
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
+              <Text style={[styles.customTimeLabel, { color: colors.text }]}>Start Time</Text>
+              
+              {/* Start Time Picker */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Hour (1-12)</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="6"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customTimeStartHour}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 1 && num <= 12) setCustomTimeStartHour(num.toString());
+                      else if (text === '') setCustomTimeStartHour('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Minute</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="00"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customTimeStartMin}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 0 && num <= 59) setCustomTimeStartMin(num.toString().padStart(2, '0'));
+                      else if (text === '') setCustomTimeStartMin('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1, justifyContent: 'flex-end', marginBottom: 0 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customTimeStartPeriod === 'AM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomTimeStartPeriod('AM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customTimeStartPeriod === 'AM' ? '#FFF' : colors.text }]}>AM</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customTimeStartPeriod === 'PM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomTimeStartPeriod('PM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customTimeStartPeriod === 'PM' ? '#FFF' : colors.text }]}>PM</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <Text style={[styles.customTimeLabel, { color: colors.text }]}>End Time</Text>
+              
+              {/* End Time Picker */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Hour (1-12)</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="10"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customTimeEndHour}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 1 && num <= 12) setCustomTimeEndHour(num.toString());
+                      else if (text === '') setCustomTimeEndHour('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Minute</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="00"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customTimeEndMin}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 0 && num <= 59) setCustomTimeEndMin(num.toString().padStart(2, '0'));
+                      else if (text === '') setCustomTimeEndMin('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1, justifyContent: 'flex-end', marginBottom: 0 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customTimeEndPeriod === 'AM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomTimeEndPeriod('AM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customTimeEndPeriod === 'AM' ? '#FFF' : colors.text }]}>AM</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customTimeEndPeriod === 'PM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomTimeEndPeriod('PM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customTimeEndPeriod === 'PM' ? '#FFF' : colors.text }]}>PM</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.setTimeButton, { backgroundColor: colors.primary, opacity: customTimeStartHour && customTimeStartMin && customTimeEndHour && customTimeEndMin ? 1 : 0.5 }]}
+                onPress={() => {
+                  if (customTimeStartHour && customTimeStartMin && customTimeEndHour && customTimeEndMin) {
+                    const start = convertTo24Hour(customTimeStartHour, customTimeStartMin, customTimeStartPeriod);
+                    const end = convertTo24Hour(customTimeEndHour, customTimeEndMin, customTimeEndPeriod);
+                    setPreferences({
+                      ...preferences,
+                      studyTimeStart: start,
+                      studyTimeEnd: end,
+                    });
+                    setShowCustomTime(false);
+                    setShowTimeModal(false);
+                    setCustomTimeStartHour('');
+                    setCustomTimeStartMin('');
+                    setCustomTimeEndHour('');
+                    setCustomTimeEndMin('');
+                  }
+                }}
+                disabled={!customTimeStartHour || !customTimeStartMin || !customTimeEndHour || !customTimeEndMin}
+              >
+                <Text style={styles.setTimeButtonText}>Set Custom Study Time</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -422,5 +612,60 @@ const styles = StyleSheet.create({
   timeOptionLabel: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  customTimeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  timeInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  timeInputText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timePickerInput: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  periodButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+  },
+  periodButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  setTimeButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  setTimeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timeHint: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

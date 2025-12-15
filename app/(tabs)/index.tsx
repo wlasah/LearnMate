@@ -338,8 +338,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E6EEF6',
-    marginTop: -30,
-    marginBottom: 5,
+    marginTop: -10,
+    marginBottom: 20,
   },
   menuButton: {
     zIndex: 10,
@@ -382,14 +382,7 @@ const styles = StyleSheet.create({
     marginTop: -6,
     marginBottom: -145,
   },
-  titleLogoText: {
-    position: 'absolute',
-    fontWeight: '900',
-    fontSize: 18,
-    zIndex: 0,
-    top: 45,
-    left: 0,
-  },
+
   learnText: {
     fontWeight: '900',
     fontSize: 22.1,

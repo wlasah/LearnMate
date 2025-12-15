@@ -15,6 +15,92 @@ import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-cont
 import { useTheme } from '../../contexts/ThemeContext';
 import { StudyMaterial, StudyMaterialsManager } from '../../utils/studyMaterialsManager';
 
+// Helper function to render text with bold formatting (removes ** characters)
+const renderTextWithBold = (text: string) => {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  const regex = /\*\*(.*?)\*\*/g;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push(
+      <Text key={`bold-${match.index}`} style={{ fontWeight: '700' }}>
+        {match[1]}
+      </Text>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+// Helper function to parse and render markdown-like content
+const renderMarkdownContent = (text: string, colors: any) => {
+  if (!text) return null;
+  
+  // Split content by line breaks
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  lines.forEach((line, index) => {
+    if (!line.trim()) {
+      elements.push(<Text key={key++}>{'\n'}</Text>);
+      return;
+    }
+
+    // Check for markdown headers (##, ###)
+    if (line.startsWith('## ')) {
+      const headerText = line.substring(3).trim();
+      elements.push(
+        <Text key={key++} style={{ fontSize: 16, fontWeight: '700', marginTop: 12, marginBottom: 8, color: colors.text }}>
+          {renderTextWithBold(headerText)}
+        </Text>
+      );
+    } else if (line.startsWith('### ')) {
+      const subHeaderText = line.substring(4).trim();
+      elements.push(
+        <Text key={key++} style={{ fontSize: 14, fontWeight: '600', marginTop: 10, marginBottom: 6, color: colors.text }}>
+          {renderTextWithBold(subHeaderText)}
+        </Text>
+      );
+    } else if (line.startsWith('• ') || line.startsWith('- ')) {
+      // Bullet points - strip the bullet/dash and re-add it
+      const bulletText = line.replace(/^[•\-]\s+/, '').trim();
+      elements.push(
+        <Text key={key++} style={{ fontSize: 13, marginLeft: 16, marginBottom: 4, color: colors.text, lineHeight: 20 }}>
+          {'• '}{renderTextWithBold(bulletText)}
+        </Text>
+      );
+    } else if (/^\d+\. /.test(line)) {
+      // Numbered lists
+      const numberMatch = line.match(/^(\d+)\.\s+/);
+      const numberedText = line.replace(/^\d+\.\s+/, '').trim();
+      elements.push(
+        <Text key={key++} style={{ fontSize: 13, marginLeft: 8, marginBottom: 4, color: colors.text, lineHeight: 20 }}>
+          {numberMatch ? numberMatch[1] + '. ' : ''}{renderTextWithBold(numberedText)}
+        </Text>
+      );
+    } else {
+      // Regular text with possible bold formatting
+      elements.push(
+        <Text key={key++} style={{ fontSize: 13, marginBottom: 6, color: colors.text, lineHeight: 20 }}>
+          {renderTextWithBold(line)}
+        </Text>
+      );
+    }
+  });
+
+  return <View>{elements}</View>;
+};
+
 export default function MaterialDetail() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -175,7 +261,7 @@ export default function MaterialDetail() {
             </View>
           </View>
 
-          {material.difficulty && (
+          {material.difficulty && material.method !== 'summary' && (
             <View style={[styles.difficultyBadge, { backgroundColor: colors.card }]}>
               <Text style={[styles.difficultyText, { color: colors.text }]}>
                 Difficulty: {material.difficulty.charAt(0).toUpperCase() + material.difficulty.slice(1)}
@@ -189,9 +275,10 @@ export default function MaterialDetail() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Content</Text>
           <View style={[styles.contentBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {material.method === 'summary' ? (
-              <Text style={[styles.contentText, { color: colors.text }]}>
-                {typeof material.content === 'string' ? material.content : JSON.stringify(material.content, null, 2)}
-              </Text>
+              renderMarkdownContent(
+                typeof material.content === 'string' ? material.content : JSON.stringify(material.content, null, 2),
+                colors
+              )
             ) : material.method === 'quiz' ? (
               renderQuizContent()
             ) : material.method === 'flashcards' ? (

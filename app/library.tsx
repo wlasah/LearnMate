@@ -31,27 +31,36 @@ export default function StudyLibrary() {
     }, [])
   );
 
+  // Reload materials whenever filter, sort, or search changes
+  React.useEffect(() => {
+    loadMaterials();
+  }, [filterMethod, sortBy, searchQuery]);
+
   const loadMaterials = async () => {
     setLoading(true);
     try {
       let loaded: StudyMaterial[];
       
+      // First, get materials based on filter
       if (filterMethod) {
         loaded = await StudyMaterialsManager.getMaterialsByMethod(filterMethod as any);
       } else {
         loaded = await StudyMaterialsManager.getAllMaterials();
       }
 
-      // Sort
+      // Then apply sort to filtered results
       if (sortBy === 'reviews') {
-        loaded = await StudyMaterialsManager.getMaterialsSortedByReviewCount();
+        // Sort by review count (descending)
+        loaded = loaded.sort((a, b) => b.reviewCount - a.reviewCount);
       } else if (sortBy === 'favorites') {
+        // Filter to only favorites
         loaded = loaded.filter(m => m.isFavorite);
       } else {
-        loaded = await StudyMaterialsManager.getMaterialsSortedByDate(true);
+        // Sort by date (most recent first)
+        loaded = loaded.sort((a, b) => b.createdAt - a.createdAt);
       }
 
-      // Search
+      // Finally apply search filter
       if (searchQuery) {
         loaded = loaded.filter(m =>
           m.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -128,11 +137,27 @@ export default function StudyLibrary() {
     }
   };
 
-  const renderMaterial = ({ item }: { item: StudyMaterial }) => (
-    <TouchableOpacity
-      style={[styles.materialCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={() => router.push(`/library/material-detail?id=${item.id}` as any)}
-    >
+  const renderMaterial = ({ item }: { item: StudyMaterial }) => {
+    // Determine which page to open based on study method
+    const getDetailRoute = () => {
+      switch (item.method) {
+        case 'flashcards':
+          return `/flashcards?cardsData=${encodeURIComponent(JSON.stringify(item.content))}&fileName=${encodeURIComponent(item.fileName)}`;
+        case 'quiz':
+          return `/quiz-start?quizData=${encodeURIComponent(JSON.stringify(item.content))}&fileName=${encodeURIComponent(item.fileName)}`;
+        case 'practice':
+          return `/ai-result?practiceData=${encodeURIComponent(JSON.stringify(item.content))}&fileName=${encodeURIComponent(item.fileName)}&method=practice`;
+        case 'summary':
+        default:
+          return `/library/material-detail?id=${item.id}`;
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        style={[styles.materialCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => router.push(getDetailRoute() as any)}
+      >
       <View style={styles.cardHeader}>
         <View style={styles.cardIconContainer}>
           <Ionicons
@@ -189,6 +214,7 @@ export default function StudyLibrary() {
       )}
     </TouchableOpacity>
   );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
     SafeAreaView,
     ScrollView,
@@ -9,7 +9,6 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { Sidebar } from '../components/Sidebar';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -18,7 +17,6 @@ export default function NotificationsPage() {
   const { colors } = useTheme();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } =
     useNotifications();
-  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const getNotificationColor = (type: string) => {
     switch (type) {
@@ -59,8 +57,8 @@ export default function NotificationsPage() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => setSidebarVisible(true)}>
-          <Ionicons name="menu" size={28} color={colors.text} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
@@ -74,8 +72,6 @@ export default function NotificationsPage() {
         </View>
       </View>
 
-      {/* Sidebar */}
-      <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
 
       {/* Content */}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>

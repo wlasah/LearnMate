@@ -10,6 +10,7 @@ import {
     StyleSheet,
     Switch,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -23,8 +24,12 @@ export default function NotificationSettings() {
   const [saving, setSaving] = useState(false);
   const [showQuietHoursModal, setShowQuietHoursModal] = useState(false);
   const [showCustomQuietHours, setShowCustomQuietHours] = useState(false);
-  const [customQuietStart, setCustomQuietStart] = useState('');
-  const [customQuietEnd, setCustomQuietEnd] = useState('');
+  const [customQuietStartHour, setCustomQuietStartHour] = useState('');
+  const [customQuietStartMin, setCustomQuietStartMin] = useState('');
+  const [customQuietStartPeriod, setCustomQuietStartPeriod] = useState('PM');
+  const [customQuietEndHour, setCustomQuietEndHour] = useState('');
+  const [customQuietEndMin, setCustomQuietEndMin] = useState('');
+  const [customQuietEndPeriod, setCustomQuietEndPeriod] = useState('AM');
   const [settings, setSettings] = useState({
     push: true,
     uploadReminder: true,
@@ -35,6 +40,28 @@ export default function NotificationSettings() {
     quietHoursStart: '22:00',
     quietHoursEnd: '08:00',
   });
+
+  // Convert 24-hour to 12-hour format
+  const convertTo12Hour = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    if (hour > 12) hour -= 12;
+    if (hour === 0) hour = 12;
+    return {
+      hour: hour.toString().padStart(2, '0'),
+      minute: minutes,
+      period,
+    };
+  };
+
+  // Convert 12-hour to 24-hour format
+  const convertTo24Hour = (hour: string, minute: string, period: string) => {
+    let h = parseInt(hour);
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return `${h.toString().padStart(2, '0')}:${minute}`;
+  };
 
   const quietHourPresets = [
     { label: 'No Quiet Hours', start: '', end: '' },
@@ -209,6 +236,162 @@ export default function NotificationSettings() {
         </SafeAreaView>
       </Modal>
 
+      {/* Custom Quiet Hours Modal */}
+      <Modal
+        visible={showCustomQuietHours}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCustomQuietHours(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Custom Quiet Hours</Text>
+            <TouchableOpacity onPress={() => setShowCustomQuietHours(false)}>
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
+              <Text style={[styles.customTimeLabel, { color: colors.text }]}>Start Time</Text>
+              
+              {/* Start Time Picker */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Hour (1-12)</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="12"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customQuietStartHour}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 1 && num <= 12) setCustomQuietStartHour(num.toString());
+                      else if (text === '') setCustomQuietStartHour('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Minute</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="00"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customQuietStartMin}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 0 && num <= 59) setCustomQuietStartMin(num.toString().padStart(2, '0'));
+                      else if (text === '') setCustomQuietStartMin('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1, justifyContent: 'flex-end', marginBottom: 0 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customQuietStartPeriod === 'AM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomQuietStartPeriod('AM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customQuietStartPeriod === 'AM' ? '#FFF' : colors.text }]}>AM</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customQuietStartPeriod === 'PM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomQuietStartPeriod('PM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customQuietStartPeriod === 'PM' ? '#FFF' : colors.text }]}>PM</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <Text style={[styles.customTimeLabel, { color: colors.text }]}>End Time</Text>
+              
+              {/* End Time Picker */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Hour (1-12)</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="12"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customQuietEndHour}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 1 && num <= 12) setCustomQuietEndHour(num.toString());
+                      else if (text === '') setCustomQuietEndHour('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>Minute</Text>
+                  <TextInput
+                    style={[styles.timePickerInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    placeholder="00"
+                    placeholderTextColor={colors.textSecondary}
+                    value={customQuietEndMin}
+                    onChangeText={(text) => {
+                      const num = parseInt(text) || 0;
+                      if (num >= 0 && num <= 59) setCustomQuietEndMin(num.toString().padStart(2, '0'));
+                      else if (text === '') setCustomQuietEndMin('');
+                    }}
+                    maxLength={2}
+                    keyboardType="number-pad"
+                  />
+                </View>
+
+                <View style={{ flex: 1, justifyContent: 'flex-end', marginBottom: 0 }}>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customQuietEndPeriod === 'AM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomQuietEndPeriod('AM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customQuietEndPeriod === 'AM' ? '#FFF' : colors.text }]}>AM</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.periodButton, customQuietEndPeriod === 'PM' && { backgroundColor: colors.primary }]}
+                      onPress={() => setCustomQuietEndPeriod('PM')}
+                    >
+                      <Text style={[styles.periodButtonText, { color: customQuietEndPeriod === 'PM' ? '#FFF' : colors.text }]}>PM</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.setTimeButton, { backgroundColor: colors.primary, opacity: customQuietStartHour && customQuietStartMin && customQuietEndHour && customQuietEndMin ? 1 : 0.5 }]}
+                onPress={() => {
+                  if (customQuietStartHour && customQuietStartMin && customQuietEndHour && customQuietEndMin) {
+                    const start = convertTo24Hour(customQuietStartHour, customQuietStartMin, customQuietStartPeriod);
+                    const end = convertTo24Hour(customQuietEndHour, customQuietEndMin, customQuietEndPeriod);
+                    setSettings({
+                      ...settings,
+                      quietHoursStart: start,
+                      quietHoursEnd: end,
+                    });
+                    setShowCustomQuietHours(false);
+                    setCustomQuietStartHour('');
+                    setCustomQuietStartMin('');
+                    setCustomQuietEndHour('');
+                    setCustomQuietEndMin('');
+                  }
+                }}
+                disabled={!customQuietStartHour || !customQuietStartMin || !customQuietEndHour || !customQuietEndMin}
+              >
+                <Text style={styles.setTimeButtonText}>Set Custom Quiet Hours</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       {/* Save Button */}
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <TouchableOpacity
@@ -352,5 +535,60 @@ const styles = StyleSheet.create({
   quietHoursOptionTime: {
     fontSize: 12,
     marginTop: 4,
+  },
+  customTimeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  timeInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  timeInputText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timePickerInput: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  periodButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+  },
+  periodButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  setTimeButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  setTimeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timeHint: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
